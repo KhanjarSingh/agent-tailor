@@ -1,0 +1,17 @@
+{
+  "name": "agentsuit",
+  "version": "0.1.0",
+  "description": "AgentTailor Mark-1 CLI for API-driven agent workflows",
+  "type": "module",
+  "bin": {
+    "agentsuit": "./bin/agentsuit"
+  },
+  "scripts": {
+    "start": "node ./bin/agentsuit",
+    "mock:api": "node ./scripts/mock-api.js",
+    "setup:local": "npm install && npm link"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

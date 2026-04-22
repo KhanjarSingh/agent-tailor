@@ -1,0 +1,89 @@
+#!/usr/bin/env node
+
+import { createHttpClient, getConfig, getCredentials, resolveBaseUrl, resolveBearerToken } from "../src/client.js";
+
+import { handleAgents } from "../src/commands/agents.js";
+import { handleConfig } from "../src/commands/config.js";
+import { handleLogin } from "../src/auth/oauth-sim.js";
+import { handleResponses } from "../src/commands/responses.js";
+import { handleSetKey } from "../src/auth/apikey.js";
+
+function writeJson(payload) {
+    process.stdout.write(`${JSON.stringify(payload)}\n`);
+}
+
+function writeErr(message) {
+    process.stderr.write(`${message}\n`);
+}
+
+async function main() {
+    const argv = process.argv.slice(2);
+    const [group, ...rest] = argv;
+
+    if (!group) {
+        return {
+            ok: false,
+            error: "client_error",
+            message: "Usage: agentsuit <auth|config|agents|responses> ...",
+        };
+    }
+
+    const config = await getConfig();
+    const baseUrl = resolveBaseUrl(config);
+
+    const client = createHttpClient({
+        baseUrl,
+        getToken: async () => {
+            const credentials = await getCredentials();
+            return resolveBearerToken(credentials);
+        },
+    });
+
+    if (group === "config") {
+        return handleConfig(rest);
+    }
+
+    if (group === "auth") {
+        const [action, ...authArgs] = rest;
+        if (action === "set-key") {
+            return handleSetKey(authArgs);
+        }
+        if (action === "login") {
+            return handleLogin();
+        }
+        return {
+            ok: false,
+            error: "client_error",
+            message: "Usage: agentsuit auth <set-key|login>",
+        };
+    }
+
+    if (group === "agents") {
+        return handleAgents(rest, { client, writeErr });
+    }
+
+    if (group === "responses") {
+        return handleResponses(rest, { client, writeErr });
+    }
+
+    return {
+        ok: false,
+        error: "client_error",
+        message: "Unknown command group",
+    };
+}
+
+main()
+    .then((result) => {
+        writeJson(result);
+        process.exitCode = result && result.ok ? 0 : 1;
+    })
+    .catch((error) => {
+        writeErr(error && error.stack ? error.stack : String(error));
+        writeJson({
+            ok: false,
+            error: "unreachable",
+            message: "Unexpected runtime failure",
+        });
+        process.exitCode = 1;
+    });
